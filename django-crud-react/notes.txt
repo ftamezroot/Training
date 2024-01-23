@@ -1,0 +1,127 @@
+https://www.youtube.com/watch?v=38XWpyEK8IY
+
+- Django como backend (REST API)
+- Crud para interactuar con backend
+- Rest como frontend
+
+1) Pre-requisitos
+	- mkdir djanco-crud-react
+	- cd django-crud-react
+	- python -m venv venv
+	- venv\scripts\activate.ps1
+	- pip install django
+	- pip install djangorestframework (para las API, incluye cruds)
+	- pip install django-cors-headers (para restringir quién se puede conectar a nuestro servidor API de desarrollo)
+
+2) Creamos y configuramos la aplicación Django REST framework
+	- django-admin startproject itcrud . (solamente API)
+	- python manage.py startapp tasks
+	- Agregamos rest_framework al settings.py
+	- Agregamos la aplicación tasks al settings.py
+	- Agregamos corsheaders al settings.py
+	- Agregamos en settings.py, en la parte de MIDDLEWARE, antes de la línea de CommonMiddleware
+	  a "corsheaders.middleware.CorsMiddleware"
+	- Agregamos en settings.py a CORS_ALLOWED_ORIGINS = [ "mi servidor 1 que se puede conecatar a mi API server", "mi servidor 2"]
+	- python manage.py migrate (crear tablas)
+	- python manage.py createsuperuser (crear usuario admin para el backend de Django)
+	- python manage.py runserver (verificar que todo esta ok)
+	
+3) Creamos el modelo de las taks, dentro de la carpeta task. Archico models.py
+	# Archivo models.py
+	from django.db import models
+	class Task(models.Model):
+		title = models.CharField(max_length=200)
+		description = models.TextField(blank=true)
+		done = models.BooleanField(default=False)
+		
+		def__str__(self):
+			return self.title
+	---------	
+	# Archivo admin.py
+	from django.contrib import admin
+	from .models import Task
+	
+	admin.site.register(Task)
+	--------
+	- python manage.py makemigrations tasks
+	- python manage.py migrate
+	- python manage.py runserver (http://localhost:8000/admin)
+	
+4) Creamos la API
+	# Archivo tasks-> serializer.py (creamos los campos que se van a serializar de Python a JSON)
+	from rest_framework import serializers
+	from .models import Task
+	
+	class TaskSerializer(serializers.ModelSerializer):
+		class Meta:
+			model = Task
+			# fields = ('id', 'title', 'description', 'done')
+			fields = '__all__' # Para incluir todos los campos
+	--------		
+	# Creamos la vista en tasks -> views.py
+	# Generamos el CRUD (create, read, update & delete)
+	# from django.shortcuts import render (no se requiere renderizar, todo va a ser con el CRUD)
+	from rest_framework import viewsets (son las tareas de CRUD)
+	from .serializer import TaskSerializer
+	from .models import Task
+	
+	class TaskView(viewsets.ModelViewSet):
+		serializer_class = TaskSerializer
+		queryset = Task.objects.all()
+		
+	------
+	# Archivo task -> urls.py
+	from django.urls import path, include
+	from rest_framework import routers
+	from .views import TaskView
+	
+	router = routers.DefaultRouter()
+	router.register(r'tasks', views.TaskView, 'tasks')
+	
+	urlpatterns = [
+		path('api/v1/', include(router.urls)),
+	]
+	-------
+	# Archivo itcrud -> urls.py
+	from django-contrib import admin
+	from django.urls import path, include
+	
+	urlpatterns = [
+		path('admin/', admin.site.urls),
+		path('tasks/', include('tasks.urls')), # se van a generar http://localhost:8000/tasks/api/v1/tasks
+	]
+	-------
+	- Probar que ya está funcionando el API con postman o en VSC con Thunder Client.
+	- También se puede usar http://localhost:8000/tasks/api/v1/tasks
+	- Solo faltaría generar la documentación del API en automático:
+		- pip install coreapi
+		- agregamos coreapi en apps de settins.py, antes de tasks
+		- agregamos en tasks -> urls.py:
+			from rest_framework.documentation import include_docs_urls
+			
+			path('docs/', include_docs_urls(title='Tasks API')),
+		- Agregamos en itcrud -> settings.py:
+			REST_FRAMEWORK = {
+				'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+			}
+		- http://localhost:800/tasks/docs/
+	
+5) Crear el frontend con React. (vamos a utilizar vite https://vitejs.dev)
+	- abrimos otra terminal en VSC, para dejar corriendo django en la otra
+	- verificar que tenemos instalado node (https://nodejs.org): node --version
+	- En el directorio root del proyecto itcrud: npm create vite
+		- Project name: client
+		- Framework: React
+		- Variant: JavaScript (o puede ser JavaScript + SWC)
+	- nos cambiamos de directorio al client
+	- npm install
+	- npm run dev
+	- http://localhost:5173
+	- Comunicamos frontend con nuestro backend
+		- Ctrl-C
+		- npm i react-router-dom react-hot-toast (para comprobar borrado,etc) axios (en lugar de fetch) react-hook-form (validar el input del front)
+		- se puede usar darwin para estilizar, pero no en este momento
+		- Archivo client -> src -> App.jsx:
+			- Eliminar todo y teclear la palabra rfce + enter (para autocompletar un esqueleto de una app React)
+		- Eliminamos todo el contenido de client -> src -> App.css y de index.css
+		- Creamos las carpetas cllient -> src -> pages, components, api

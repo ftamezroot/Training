@@ -1,0 +1,3 @@
+Librearías:
+    - tensorflow
+    - numpy
