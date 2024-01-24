@@ -113,7 +113,7 @@ https://www.youtube.com/watch?v=38XWpyEK8IY
 		- Project name: client
 		- Framework: React
 		- Variant: JavaScript (o puede ser JavaScript + SWC)
-	- nos cambiamos de directorio al client
+	- nos cambiamos de directorio client
 	- npm install
 	- npm run dev
 	- http://localhost:5173
@@ -123,5 +123,278 @@ https://www.youtube.com/watch?v=38XWpyEK8IY
 		- se puede usar darwin para estilizar, pero no en este momento
 		- Archivo client -> src -> App.jsx:
 			- Eliminar todo y teclear la palabra rfce + enter (para autocompletar un esqueleto de una app React)
+			----------
+			function App() {
+			  return (
+				<div>Bienvenidos</div>
+			  )
+			}
+
+			export default App
+			-----------
 		- Eliminamos todo el contenido de client -> src -> App.css y de index.css
-		- Creamos las carpetas cllient -> src -> pages, components, api
+		- Creamos las carpetas cllient -> src 
+			- pages (paginas) 
+			- components (botones, formas, etc)
+			- api (funciones que pueden interactuar con nuestro backend)
+		- En pages creamos: TaskPage.jsx (listar tares) y TaskFormPage.jsx (formulario de tareas)
+			# con rfce + enter, eliminamos la primer línea y exportamos la función
+			#TaskPage.jsx
+			export function TaskPage() {
+			  return (
+				<div>Tasks Page</div>
+			  )
+			}
+			---------
+			# TaskFormPage.jsx
+			export function TaskFormPage() {
+			  return (
+				<div>Task Form Page</div>
+			  )
+			}
+			---------
+			# App.jsx
+			import { BrowserRouter, Routes, Route } from "react-router-dom";
+			import { TasksPage } from "./pages/TasksPage";
+			import { TaskFormPage } from "./pages/TaskFormPage";
+
+			function App() {
+			  return (
+				<BrowserRouter>
+				  <Routes>
+					<Route path="/tasks" element={<TasksPage />} />
+					<Route path="/tasks-create" element={<TaskFormPage />} />
+				  </Routes>
+				</BrowserRouter>
+			  );
+			}
+
+			export default App;
+			-----------
+		- http://localhost:5173/tasks
+		- http://localhost:5173/tasks-create
+		- Agregamos archivo components -> Navigation.jsx
+			# Navigation.jsx
+			import { Link } from "react-router-dom"
+
+			export function Navigation() {
+			  return (
+				<div>
+					<h1>Task App</h1>
+					<Link to="/tasks-create">Create task</Link>
+				</div>
+			  )
+			}
+			---------
+			# App.jsx
+			import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+			import { TasksPage } from "./pages/TasksPage";
+			import { TaskFormPage } from "./pages/TaskFormPage";
+			import { Navigation } from "./components/Navigation";
+
+			function App() {
+			  return (
+				<BrowserRouter>
+				  <Navigation />
+				  
+				  <Routes>
+					<Route path="/" element={<Navigate to="/tasks" />} />
+					<Route path="/tasks" element={<TasksPage />} />
+					<Route path="/tasks-create" element={<TaskFormPage />} />
+				  </Routes>
+				</BrowserRouter>
+			  );
+			}
+
+			export default App;
+			---------
+		- Agregamos al components -> Navigation.jsx:
+			<Link to="/tasks">
+				<h1>Task App</h1>
+			</Link>
+		- http://localhost:5173/tasks
+		- Consultar datos al backend. Agregamos un componente que enliste las tareas existentes en nuestra base de datos.
+			# components -> TasksList.jsx
+			export function TasksList() {
+			  return (
+				<div>TasksList</div>
+			  )
+			}
+			------
+		- Agregamos componente TasksList al pages -> TasksPage.jsx
+			# TasksPage.jsx
+			import { TasksList } from "../components/TasksList"
+
+			export function TasksPage() {
+			  return <TasksList />
+			}
+			------------
+		- Dentro del directorio api -> tasks.api.js (JavaScript)
+			# tasks.api.js
+			import axios from 'axios'
+
+			// Interactuamos con el backend
+			// axios es la bilbioteca que me permite hacer las peticiones
+			export const getAllTasks = () => {
+				return axios.get('http://localhost:8000/tasks/api/v1/tasks/')
+			}
+			-------
+		- Modificamos componente components -> TasksList.jsx
+			# TasksList.jsx
+			import { useEffect, useState } from "react"
+			import { getAllTasks } from "../api/tasks.api"
+
+			export function TasksList() {
+			  // Guardamos los datos que obteneos del backend con useState
+			  const [tasks, setTasks] = useState([]);
+
+			  // Apenas cargue la página, realice lo siguiente
+			  useEffect( () => {
+				// async para decirle que se va a estar ejecutando en paralelo con otras operaciones
+				// await para que espera a obtener la respuesta
+				async function loadTaks() {
+					const res = await getAllTasks();
+					// Le pasamos los valores a la variable tasks
+					setTasks(res.data);
+				}
+				loadTaks()
+
+			  }, []);
+			  return <div>
+				{tasks.map(task => (
+					<div key={task.id}>
+						<h1>{task.title}</h1>
+						<p>{task.description}</p>
+					</div>
+				))}
+			  </div>
+			}
+
+			-------
+		- Agregamos nuestro servidor React al settings.py de Django, para que nos permita consultarlo.
+			# settings.py
+			CORS_ALLOWED_ORIGINS = ['http://localhost:5173']
+			
+		- http://localhost:5173/tasks
+		- Ahora creamos un componente TaskCard.jsx, para mejorar la forma en que despliega cada tarea
+			# TaskCard.jsx, de entrada va a recibir el task que le van a enviar para desplegar
+			export function TaskCard({task}) {
+			  return (
+				<div>
+					<h1>{task.title}</h1>
+					<p>{task.description}</p>
+				</div>
+			  )
+			}
+			---------
+		- Modificamos componente TasksList.jsx
+			...
+			import { TaskCard } from "./TaskCard";
+			...
+			return <div>
+				{tasks.map(task => (
+					<TaskCard key={task.id} task={task} />
+				))}
+			</div>
+			------------
+		- Agregamos formulario para poder crear tareas. Modificamos pages -> TaskFormPage.jsx
+			# TaskFormPage.jsx
+			import {useForm} from 'react-hook-form'
+
+			// Con jup y zod podemos hacer validaciones más complejas
+			// pero por ahora utilizaremos useForm
+
+			export function TaskFormPage() {
+
+			  const {register, handleSubmit} = useForm();
+
+			  const onSubmit = handleSubmit( data => {
+				console.log(data)
+			  })
+
+			  return (
+				<div>
+				  <form onSubmit={onSubmit}>
+					<input 
+					  type="text" 
+					  placeholder="title" 
+					  {...register("title", { required: true })}
+					/>
+					<textarea 
+					  name="descreiption" 
+					  rows="3" 
+					  placeholder="Description">
+					  {...register("description", { required: true })}
+					</textarea>
+					<button>Save</button>
+				  </form>
+				</div>
+			  )
+			}
+			-------------
+			# Podemos agregar validación para los datos en el mismo archivo TaskFormPage.jsx
+			import {useForm} from 'react-hook-form'
+
+			// Con jup y zod podemos hacer validaciones más complejas
+			// pero por ahora utilizaremos useForm
+
+			export function TaskFormPage() {
+
+			  const {register, handleSubmit, formState: {errors} } = useForm();
+
+			  const onSubmit = handleSubmit( data => {
+				console.log(data)
+			  })
+
+			  return (
+				<div>
+				  <form onSubmit={onSubmit}>
+					<input 
+					  type="text" 
+					  placeholder="title" 
+					  {...register("title", { required: true })}
+					/>
+					{errors.title && <span>This field is required.</span>}
+
+					<textarea
+					  name="descreiption" 
+					  rows="3" 
+					  placeholder="Description"
+					  {...register("description", { required: true })}
+					/>
+					{errors.description && <span>This field is required.</span>}
+					<button>Save</button>
+				  </form>
+				</div>
+			  )
+			}
+			
+		- Modificamos tasks.api.js para que ahora sí, empiece a crear nuevas tareas con el método postman
+			# tasks.api.js
+			import axios from 'axios'
+
+			// Interactuamos con el backend
+			// axios es la bilbioteca que me permite hacer las peticiones
+			const taskApi = axios.create( {
+				baseURL: "http://localhost:8000/tasks/api/v1/tasks/",
+			})
+
+			export const getAllTasks = () => taskApi.get("/");
+			export const createTask = (task) => taskApi.post("/", task);
+			---------
+		- Modificamos pages -> TaskFormPage.jsx
+			# TaskFormPage.jsx
+			...
+			import { createTask } from '../api/tasks.api';
+			...
+			const onSubmit = handleSubmit( async data => {
+				const res = await createTask(data);
+				console.log(res);
+			})
+			...
+			-----------
+		- Ahora vamos a redireccionar hacia la consulta de tasks, después de crear una task
+			# TaskFormPage.jsx
+			...
+			import 
+		- Eliminar tareas.
